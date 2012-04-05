@@ -40,10 +40,19 @@ static NSMutableArray   *__cache;
     if (_filePath && _saveKey) {
         [_lock lock];
         NSData* artistData = [NSKeyedArchiver archivedDataWithRootObject:_datas];
-        [artistData writeToFile:_filePath atomically:YES];
+        [self performSelectorInBackground:@selector(writeFileHandle:)
+                               withObject:[NSArray arrayWithObjects:artistData, _filePath, nil]];
         _saveKey = NO;
         [_lock unlock];
     }
+}
+
+- (void)writeFileHandle:(NSArray*)array
+{
+    NSData *data = [array objectAtIndex:0];
+    NSString *path = [array objectAtIndex:1];
+    [data writeToFile:path
+           atomically:YES];
 }
 
 - (id)init
@@ -87,8 +96,8 @@ static NSMutableArray   *__cache;
     if (!data) {
         data = UIImagePNGRepresentation(file.data);
     }
-    [data writeToFile:file.path 
-           atomically:YES];
+    [self performSelectorInBackground:@selector(writeFileHandle:)
+                           withObject:[NSArray arrayWithObjects:data, file.path, nil]];
     file.size = [data length];
     _saveKey = YES;
     [_lock unlock];
