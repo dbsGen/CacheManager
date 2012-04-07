@@ -11,7 +11,8 @@
 
 @interface MTLocationCache : NSObject {
     NSMutableDictionary *_datas;
-    NSString            *_filePath;
+    NSString            *_filePath,
+                        *_tempPath;
     NSCondition         *_lock;
     BOOL                _saveKey;
 }

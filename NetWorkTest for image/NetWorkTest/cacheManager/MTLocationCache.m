@@ -51,7 +51,7 @@ static NSMutableArray   *__cache;
 {
     NSData *data = [array objectAtIndex:0];
     NSString *path = [array objectAtIndex:1];
-    [data writeToFile:path
+    [data writeToFile:[_tempPath stringByAppendingPathComponent:path]
            atomically:YES];
 }
 
@@ -105,6 +105,7 @@ static NSMutableArray   *__cache;
 
 - (void)setDirPath:(NSString *)path
 {
+    _tempPath = [path copy];
     _filePath = [[path stringByAppendingPathComponent:kFileName] copy];
     _datas = [[NSMutableDictionary alloc] initWithDictionary:[NSKeyedUnarchiver unarchiveObjectWithFile:_filePath]];
     if (!_datas) {
@@ -118,7 +119,8 @@ static NSMutableArray   *__cache;
     [_lock lock];
     MTNetCacheElement *obj = [_datas objectForKey:url];
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    [fileManager removeItemAtPath:obj.path error:nil];
+    [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:obj.path]
+                            error:nil];
     [_datas removeObjectForKey:url];
     _saveKey = YES;
     [_lock unlock];
@@ -129,7 +131,7 @@ static NSMutableArray   *__cache;
     NSEnumerator *enumerator = [_datas objectEnumerator];
     MTNetCacheElement *obj;
     while ((obj = [enumerator nextObject])) {
-        if ([[obj.path lastPathComponent] isEqualToString:name]) {
+        if ([obj.path isEqualToString:name]) {
             obj.date = [NSDate date];
             return obj;
         }
@@ -143,7 +145,7 @@ static NSMutableArray   *__cache;
     [_datas enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         MTNetCacheElement *tObj = obj;
         NSFileManager *fileManager = [NSFileManager defaultManager];
-        [fileManager removeItemAtPath:tObj.path error:nil];
+        [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:tObj.path] error:nil];
     }];
     [_datas removeAllObjects];
     _saveKey = YES;
@@ -158,7 +160,8 @@ static NSMutableArray   *__cache;
         MTNetCacheElement *element = [_datas objectForKey:key];
         if (element && [element.date compare:date] == NSOrderedAscending) {
             NSFileManager *fileManager = [NSFileManager defaultManager];
-            [fileManager removeItemAtPath:element.path error:nil];
+            [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:element.path] 
+                                    error:nil];
             [_datas removeObjectForKey:key];
         }
     }

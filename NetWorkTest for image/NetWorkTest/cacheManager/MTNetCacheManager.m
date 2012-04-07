@@ -105,12 +105,12 @@ static NSString *__tempPath;
         obj = [[[MTNetCacheElement alloc] init] autorelease];
         obj.data = image;
         obj.date = [NSDate date];
-        NSString *path = [[[self class] tempPath] stringByAppendingPathComponent:name];
-        obj.path = path;
+        obj.path = name;
         obj.urlString = url;
         [_locationCache addFile:obj];
     }else {
-        obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:obj.path]];
+        obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:
+                                           [[[self class] tempPath] stringByAppendingPathComponent:obj.path]]];
         [_memoryCache addFile:obj];
     }
 }
@@ -123,7 +123,7 @@ static NSString *__tempPath;
     } else {
         obj = [_locationCache fileForUrl:url];
         if (obj) {
-            obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:obj.path]];
+            obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:[[[self class] tempPath] stringByAppendingPathComponent:obj.path]]];
             [_memoryCache addFile:obj];
             return obj.data;
         }else {
