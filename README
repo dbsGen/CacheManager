@@ -1,10 +1,10 @@
-##CacheManager
+CacheManager
 
 CacheManager will help you to create a cache system. and used GCD to achieve multi-threaded.
 
 you can get the data in cache by:
 
-		- (void)getImageWithUrl:(NSString*)url block:(MTNetCacheBlock)block;
+- (void)getImageWithUrl:(NSString*)url block:(MTNetCacheBlock)block;
 
 and set cache by:
-		- (void)setImage:(UIImage*)image withUrl:(NSString*)url;
+- (void)setImage:(UIImage*)image withUrl:(NSString*)url;
