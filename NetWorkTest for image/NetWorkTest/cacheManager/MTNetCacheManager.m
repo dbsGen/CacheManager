@@ -3,7 +3,7 @@
 //  NetWorkTest
 //
 //  Created by zrz on 12-3-2.
-//  Copyright (c) 2012年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2012年 zrz. All rights reserved.
 //
 
 #import "MTNetCacheManager.h"
