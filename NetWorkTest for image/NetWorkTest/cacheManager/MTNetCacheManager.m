@@ -23,33 +23,37 @@
 
 static id __defaultManager;
 
-@synthesize maxSize, autoClean = _autoClean, autoCleanTime = _autoCleanTime;
+@synthesize autoClean = _autoClean, autoCleanTime = _autoCleanTime;
+@synthesize cachePath = _tempPath;
 
 + (MTNetCacheManager*)defaultManager
 {
-    if (!__defaultManager) {
-        __defaultManager = [[self alloc] init];
+    @synchronized(self) {
+        if (!__defaultManager) {
+            __defaultManager = [[self alloc] init];
+        }
+        return __defaultManager;
     }
-    return __defaultManager;
 }
 
-static NSString *__tempPath;
-
-+ (NSString*)tempPath
+- (NSString*)cachePath
 {
-    if (!__tempPath) {
+    if (!_tempPath) {
         NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
         NSString *path = [paths lastObject];
-        __tempPath = [[path stringByAppendingPathComponent:kTempFileDir] copy];
+        _tempPath = [[path stringByAppendingPathComponent:kTempFileDir] copy];
     }
-    return __tempPath;
+    return _tempPath;
 }
 
-- (id)init
+static int __count = 0;
+
+- (id)initWithPath:(NSString*)cachePath
 {
     self = [super init];
     if (self) {
-        NSString *tempPath = [[self class] tempPath];
+        _tempPath = [cachePath retain];
+        NSString *tempPath = [self cachePath];
         NSFileManager *fileManager = [NSFileManager defaultManager];
         if (![fileManager fileExistsAtPath:tempPath]) {
             NSError *error = nil;
@@ -64,9 +68,11 @@ static NSString *__tempPath;
         }
         _memoryCache = [[MTMenoryCache alloc] init];     
         _locationCache = [[MTLocationCache alloc] initWithPath:tempPath];
+        _cacheQueue = dispatch_queue_create([[NSString stringWithFormat:@"cacheManager_%d", __count] UTF8String], nil);
+        _locationCache.cacheQueue = _cacheQueue;
         
         NSDictionary *dic = [NSDictionary dictionaryWithContentsOfFile:
-                             [[[self class] tempPath] stringByAppendingPathComponent:kConfigFile]];
+                             [[self cachePath] stringByAppendingPathComponent:kConfigFile]];
         BOOL isAutoClean = [[dic objectForKey:kAutoClear] boolValue];
         _autoClean = isAutoClean;
         if (isAutoClean) {
@@ -80,8 +86,14 @@ static NSString *__tempPath;
     return self;
 }
 
+- (id)init
+{
+    return [self initWithPath:nil];
+}
+
 - (void)dealloc
 {
+    dispatch_release(_cacheQueue);
     [_memoryCache   release];
     [_locationCache release];
     [super          dealloc];
@@ -99,35 +111,45 @@ static NSString *__tempPath;
 
 - (void)setImage:(UIImage*)image withUrl:(NSString*)url
 {
-    NSString *name = MD5String(UIImagePNGRepresentation(image));
-    MTNetCacheElement *obj = [_locationCache fileForName:name];
+    MTNetCacheElement *obj = [_locationCache fileForUrl:url];
     if (!obj) {
         obj = [[[MTNetCacheElement alloc] init] autorelease];
         obj.data = image;
         obj.date = [NSDate date];
-        obj.path = name;
         obj.urlString = url;
-        [_locationCache addFile:obj];
-    }else {
-        obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:
-                                           [[[self class] tempPath] stringByAppendingPathComponent:obj.path]]];
-        [_memoryCache addFile:obj];
+        [obj saveDataOnQueue:_cacheQueue
+                     dirPath:[self cachePath]
+                     success:^(MTNetCacheElement *obj) {
+                         [_locationCache addFile:obj];
+                         [_memoryCache addFile:obj];
+                     } faild:^(MTNetCacheElement *obj) {
+                         NSLog(@"%@", @"save faild");
+                     }];
     }
 }
 
-- (UIImage*)imageOfUrl:(NSString*)url
+- (void)getImageWithUrl:(NSString*)url
+                      block:(MTNetCacheBlock)block
 {
+    
     MTNetCacheElement *obj = [_memoryCache fileForUrl:url];
-    if (obj.data) {
-        return obj.data;
-    } else {
+    if (obj.data)
+        block(obj.data);
+    else {
         obj = [_locationCache fileForUrl:url];
         if (obj) {
-            obj.data = [UIImage imageWithData:[NSData dataWithContentsOfFile:[[[self class] tempPath] stringByAppendingPathComponent:obj.path]]];
-            [_memoryCache addFile:obj];
-            return obj.data;
+            [obj loadDataOnQueue:_cacheQueue
+                         dirPath:[self cachePath]
+                         success:^(MTNetCacheElement *obj) {
+                             block(obj.data);
+                             [_memoryCache addFile:obj];
+                         }
+                           faild:^(MTNetCacheElement *obj) {
+                               [_locationCache deleteFileForUrl:obj.urlString];
+                               block(nil);
+                           }];
         }else {
-            return nil;
+            block(nil);
         }
     }
 }
@@ -139,7 +161,7 @@ static NSString *__tempPath;
 
 - (void)cleanLocationCache
 {
-    [_locationCache deleteAll];
+    [_locationCache cleanDirectoryWithOut:kConfigFile];
 }
 
 - (void)removeLocationCacheBefore:(NSDate*)date
@@ -157,7 +179,7 @@ static NSString *__tempPath;
     if (_autoClean == autoClean)
         return;
     _autoClean = autoClean;
-    NSString *path = [[[self class] tempPath] stringByAppendingPathComponent:kConfigFile];
+    NSString *path = [[self cachePath] stringByAppendingPathComponent:kConfigFile];
     NSMutableDictionary *dic = [NSMutableDictionary dictionaryWithContentsOfFile:path];
     
     if (!dic) {
@@ -176,7 +198,7 @@ static NSString *__tempPath;
 {
     if (_autoCleanTime == autoCleanTime) return;
     _autoCleanTime = autoCleanTime;
-    NSString *path = [[[self class] tempPath] stringByAppendingPathComponent:kConfigFile];
+    NSString *path = [[self cachePath] stringByAppendingPathComponent:kConfigFile];
     NSMutableDictionary *dic = [NSMutableDictionary dictionaryWithContentsOfFile:path];
     
     if (!dic) {
@@ -195,6 +217,13 @@ static NSString *__tempPath;
 - (UInt64)locationUsed
 {
     return _locationCache.size;
+}
+
+- (NSString*)description
+{
+    return [NSString stringWithFormat:@"%@ memory used : %dm%dkB , disk used : %dm%dkB", 
+            [super description], self.memUsed / (1024*1024), (self.memUsed / 1024) % 1024,
+            self.locationUsed / (1024*1024), (self.locationUsed / 1024) % 1024];
 }
 
 @end

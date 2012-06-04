@@ -8,6 +8,11 @@
 
 #import <Foundation/Foundation.h>
 
+@class MTNetCacheElement;
+
+typedef void (^MTCacheElementSuccessBlock)(MTNetCacheElement* element);
+typedef void (^MTCacheElementFaildBlock)(MTNetCacheElement* element);
+
 @interface MTNetCacheElement : NSObject 
 <NSCoding>{
     NSDate      *_date;
@@ -15,12 +20,29 @@
                 *_path;
     UIImage     *_data;
     size_t      _size;
+    BOOL        _doing;
 }
 
-@property (nonatomic, retain)   NSDate      *date;
-@property (nonatomic, retain)   NSString    *urlString,
-                                            *path;
-@property (nonatomic, retain)   UIImage     *data;
-@property (nonatomic, assign)   size_t      size;
+@property (retain)   NSDate      *date;
+@property (retain)   NSString    *urlString,
+                                 *path;
+@property (retain)   UIImage     *data;
+@property (assign)   size_t      size;
+@property (readonly) BOOL        doing;
+
+- (void)saveDataOnQueue:(dispatch_queue_t)queue
+                 dirPath:(NSString*)path 
+                 success:(MTCacheElementSuccessBlock)successBlock
+                   faild:(MTCacheElementFaildBlock)faildBlock;
+
+- (void)loadDataOnQueue:(dispatch_queue_t)queue 
+                dirPath:(NSString*)path 
+                success:(MTCacheElementSuccessBlock)successBlock
+                  faild:(MTCacheElementFaildBlock)faildBlock;
+
+- (void)removeDataOnQueue:(dispatch_queue_t)queue 
+                  dirPath:(NSString*)path 
+                  success:(MTCacheElementSuccessBlock)successBlock
+                    faild:(MTCacheElementFaildBlock)faildBlock;
 
 @end

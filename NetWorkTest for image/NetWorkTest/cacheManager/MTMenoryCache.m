@@ -8,7 +8,7 @@
 
 #import "MTMenoryCache.h"
 
-UInt64 sizeOfImage(UIImage *image)
+NS_INLINE UInt64 sizeOfImage(UIImage *image)
 {
     CGImageRef cgImage = image.CGImage;
     return CGImageGetBytesPerRow(cgImage) * CGImageGetHeight(cgImage);
@@ -24,7 +24,7 @@ UInt64 sizeOfImage(UIImage *image)
     if (self) {
         _datas = [[NSMutableDictionary alloc] init];
         _index = [[NSMutableArray alloc] init];
-        _maxSize = 800000;
+        _maxSize = 8000000;
         _size = 0;
     }
     return self;

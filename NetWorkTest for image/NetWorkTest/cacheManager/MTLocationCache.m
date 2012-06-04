@@ -14,6 +14,8 @@
 
 @implementation MTLocationCache
 
+@synthesize cacheQueue = _cacheQueue;
+
 static NSMutableArray   *__cache;
 
 - (id)initWithPath:(NSString *)path
@@ -27,32 +29,39 @@ static NSMutableArray   *__cache;
 
 + (void)threadHandle
 {
-    while (1) {
-        sleep(30);
-        for (id obj in __cache) {
-            [obj save];
-        }
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
+    [runLoop addTimer:[NSTimer timerWithTimeInterval:30
+                                              target:self
+                                            selector:@selector(saveHandle)
+                                            userInfo:nil
+                                             repeats:YES]
+              forMode:NSDefaultRunLoopMode];
+    [pool release];
+    [runLoop run];
+}
+
++ (void)saveHandle
+{
+    for (MTLocationCache *cache in __cache) {
+        [cache save];
     }
 }
 
 - (void)save
 {
     if (_filePath && _saveKey) {
-        [_lock lock];
-        NSData* artistData = [NSKeyedArchiver archivedDataWithRootObject:_datas];
-        [self performSelectorInBackground:@selector(writeFileHandle:)
-                               withObject:[NSArray arrayWithObjects:artistData, _filePath, nil]];
-        _saveKey = NO;
-        [_lock unlock];
+        if (_cacheQueue) {
+            dispatch_sync(_cacheQueue, ^{
+                NSData* artistData = [NSKeyedArchiver archivedDataWithRootObject:_datas];
+                [artistData writeToFile:_filePath
+                             atomically:YES];
+            });
+            _saveKey = NO;
+        }else {
+            NSLog(@"%@", @"there is no queue!"); 
+        }
     }
-}
-
-- (void)writeFileHandle:(NSArray*)array
-{
-    NSData *data = [array objectAtIndex:0];
-    NSString *path = [array objectAtIndex:1];
-    [data writeToFile:[_tempPath stringByAppendingPathComponent:path]
-           atomically:YES];
 }
 
 - (id)init
@@ -65,6 +74,7 @@ static NSMutableArray   *__cache;
                                    withObject:nil];
         }
         [__cache addObject:self];
+        
         _lock = [[NSCondition alloc] init];
     }
     return self;
@@ -77,30 +87,10 @@ static NSMutableArray   *__cache;
     [super      dealloc];
 }
 
-- (MTNetCacheElement*)fileForUrl:(NSString*)url
-{
-    MTNetCacheElement *obj = [_datas objectForKey:url];
-    obj.date = [NSDate date];
-    return obj;
-}
-
 - (void)addFile:(MTNetCacheElement *)file
 {
-    [self addFile:file withData:nil];
-}
-
-- (void)addFile:(MTNetCacheElement *)file withData:(NSData *)data
-{
-    [_lock lock];
-    [_datas setObject:file forKey:file.urlString];
-    if (!data) {
-        data = UIImagePNGRepresentation(file.data);
-    }
-    [self performSelectorInBackground:@selector(writeFileHandle:)
-                           withObject:[NSArray arrayWithObjects:data, file.path, nil]];
-    file.size = [data length];
-    _saveKey = YES;
-    [_lock unlock];
+    [_datas setObject:file
+               forKey:file.urlString];
 }
 
 - (void)setDirPath:(NSString *)path
@@ -114,16 +104,14 @@ static NSMutableArray   *__cache;
     
 }
 
+- (void)doPerFile:(void (^)(id, id, BOOL *))block
+{
+    [_datas enumerateKeysAndObjectsUsingBlock:block];
+}
+
 - (void)deleteFileForUrl:(NSString*)url
 {
-    [_lock lock];
-    MTNetCacheElement *obj = [_datas objectForKey:url];
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:obj.path]
-                            error:nil];
     [_datas removeObjectForKey:url];
-    _saveKey = YES;
-    [_lock unlock];
 }
 
 - (MTNetCacheElement*)fileForName:(NSString *)name
@@ -139,17 +127,17 @@ static NSMutableArray   *__cache;
     return nil;
 }
 
+- (MTNetCacheElement*)fileForUrl:(NSString*)url
+{
+    MTNetCacheElement *obj = [_datas objectForKey:url];
+    obj.date = [NSDate date];
+    return obj;
+}
+
 - (void)deleteAll
 {
-    [_lock lock];
-    [_datas enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-        MTNetCacheElement *tObj = obj;
-        NSFileManager *fileManager = [NSFileManager defaultManager];
-        [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:tObj.path] error:nil];
-    }];
     [_datas removeAllObjects];
     _saveKey = YES;
-    [_lock unlock];
 }
 
 - (void)deleteBeforeDate:(NSDate*)date
@@ -178,6 +166,24 @@ static NSMutableArray   *__cache;
         totle += obj.size;
     }
     return totle;
+}
+
+- (void)cleanDirectoryWithOut:(NSString *)fileName
+{
+    dispatch_block_t block = ^(void){
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        NSArray *exitPaths = [fileManager subpathsAtPath:_tempPath];
+        for (NSString *subPath in exitPaths) {
+            if (![subPath isEqualToString:fileName] &&
+                ![subPath isEqualToString:kFileName]) {
+                [fileManager removeItemAtPath:[_tempPath stringByAppendingPathComponent:subPath]
+                                        error:nil];
+            }
+        }
+    };
+    
+    dispatch_async(_cacheQueue, block);
+    [self deleteAll];
 }
 
 @end

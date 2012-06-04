@@ -17,6 +17,7 @@
                         _size;
 }
 
+//the max size in the memory ,default is 8000000(1MB).
 @property (nonatomic, assign)   UInt64  maxSize;
 
 - (UInt64)size;

@@ -15,14 +15,20 @@
                         *_tempPath;
     NSCondition         *_lock;
     BOOL                _saveKey;
+    dispatch_queue_t    _cacheQueue;
 }
+
+@property (assign)   dispatch_queue_t    cacheQueue;
 
 - (id)initWithPath:(NSString*)path;
 
 - (void)setDirPath:(NSString *)path;
 
+- (void)doPerFile:(void (^)(id key, id obj, BOOL *stop))block;
+
 - (MTNetCacheElement*)fileForUrl:(NSString*)url;
 - (MTNetCacheElement*)fileForName:(NSString*)name;
+- (void)cleanDirectoryWithOut:(NSString*)fileName;
 
 - (void)addFile:(MTNetCacheElement *)file;
 - (void)addFile:(MTNetCacheElement *)file withData:(NSData*)data;

@@ -9,6 +9,11 @@
 #import "AppDelegate.h"
 #import "ASIHTTPRequest.h"
 
+@interface AppDelegate()
+<ASIHTTPRequestDelegate>
+
+@end
+
 @implementation AppDelegate
 
 @synthesize window = _window;
@@ -111,20 +116,28 @@
 {
     NSString *linkString = [url stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     MTNetCacheManager *manager = [MTNetCacheManager defaultManager];
-    UIImage *image = [manager imageOfUrl:linkString];
-    if (image) {
-        _imageView.image = image;
-    }else {
-        _imageView.image = nil;
-        ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:linkString]];
-        [request setCompletionBlock:^{
-            NSData *data = [request responseData];
-            UIImage *image = [UIImage imageWithData:data];
-            _imageView.image = image;
-            [manager setImage:image withUrl:linkString];
-        }];
-        [request startAsynchronous];
-    }
+    [manager getImageWithUrl:linkString
+                       block:^(UIImage *image) {if (image) {
+                                _imageView.image = image;
+                            }else {
+                                _imageView.image = nil;
+                                ASIHTTPRequest *request = [ASIHTTPRequest requestWithURL:[NSURL URLWithString:linkString]];
+                                request.delegate = self;
+                                request.userInfo = (id)linkString;
+                                [request startAsynchronous];
+                            }
+                       }];
+    
+}
+
+- (void)requestFinished:(ASIHTTPRequest *)request
+{
+    NSData *data = [request responseData];
+    UIImage *image = [UIImage imageWithData:data];
+    _imageView.image = image;
+    MTNetCacheManager *manager = [MTNetCacheManager defaultManager];
+    [manager setImage:image
+              withUrl:(id)request.userInfo];
 }
      
 - (void)deleteClicked
