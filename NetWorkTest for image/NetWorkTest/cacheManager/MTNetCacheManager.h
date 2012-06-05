@@ -25,16 +25,17 @@ typedef void (^MTNetCacheBlock)(UIImage* image);
     dispatch_queue_t    _cacheQueue; 
 }
 
-//内存缓存峰值,默认8000000(1MB),max memory size default is 
-//8000000(1MB)
+//内存缓存峰值,默认8000000(1MB)
+//max memory size default is 8000000(1MB)
 @property (nonatomic, assign)   UInt64  maxSize;    
 
-//是否自动清除缓存信息, is auto clear the data which is too old.
+//是否自动清除缓存信息
+//is auto clear the data which is too old.
 //the clean will do on the MTNetCacheManager init.
 @property (nonatomic, assign)   BOOL    autoClean;  
 
-//自动缓存清除时间 默认30天, autoCleanTime is to judge if the 
-//data is too old?
+//自动缓存清除时间 默认30天
+//autoCleanTime is to judge if the data is too old?
 @property (nonatomic, assign)   NSTimeInterval  autoCleanTime;
 //the path
 @property (nonatomic, readonly) NSString    *cachePath;
