@@ -1,7 +1,7 @@
 ##CacheManager for image
 
 this is a image version for CacheManager(after a few time I will upload the original version), it will help you to create a cache system. 
-and it will transform image from data on not the main thread using GCD.
+and it will transform image from data on a attached thread using GCD.
 
 ##Cache
 
