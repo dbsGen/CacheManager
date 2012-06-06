@@ -24,7 +24,7 @@ like:
     cacheManager.autoCleanTime = timeUpper(30);
     cacheManager.autoClean = YES;
     
-timeUpper(30) is means 30 days.
+timeUpper(30) means 30 days.
 
 - and you can clean all the image which is before a time.
 
