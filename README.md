@@ -14,7 +14,7 @@ and set image to the cache by:
 
     - (void)setImage:(UIImage*)image withUrl:(NSString*)url;
 
-##Time out
+##Expired
 
 - you can set the the autoCleanTime and autoClean to make cacheMnager auto clean the image too old.
 
