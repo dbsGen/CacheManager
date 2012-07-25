@@ -32,14 +32,14 @@ static id __defaultManager;
         if (!__defaultManager) {
             __defaultManager = [[self alloc] init];
         }
-        return __defaultManager;
     }
+    return __defaultManager;
 }
 
 - (NSString*)cachePath
 {
     if (!_tempPath) {
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
         NSString *path = [paths lastObject];
         _tempPath = [[path stringByAppendingPathComponent:kTempFileDir] copy];
     }
@@ -114,7 +114,26 @@ static int __count = 0;
     MTNetCacheElement *obj = [_locationCache fileForUrl:url];
     if (!obj) {
         obj = [[[MTNetCacheElement alloc] init] autorelease];
-        obj.data = image;
+        obj.image = image;
+        obj.date = [NSDate date];
+        obj.urlString = url;
+        [obj saveDataOnQueue:_cacheQueue
+                     dirPath:[self cachePath]
+                     success:^(MTNetCacheElement *obj) {
+                         [_locationCache addFile:obj];
+                         [_memoryCache addFile:obj];
+                     } faild:^(MTNetCacheElement *obj) {
+                         NSLog(@"%@", @"save faild");
+                     }];
+    }
+}
+
+- (void)setData:(NSData *)data withUrl:(NSString *)url
+{
+    MTNetCacheElement *obj = [_locationCache fileForUrl:url];
+    if (!obj) {
+        obj = [[[MTNetCacheElement alloc] init] autorelease];
+        obj.data = data;
         obj.date = [NSDate date];
         obj.urlString = url;
         [obj saveDataOnQueue:_cacheQueue
@@ -131,23 +150,64 @@ static int __count = 0;
 - (void)getImageWithUrl:(NSString*)url
                       block:(MTNetCacheBlock)block
 {
-    
+    MTNetCacheElement *obj = [_memoryCache fileForUrl:url];
+    if (obj.image)
+        block(obj.image);
+    else if (obj){
+        [obj loadImageOnQueue:_cacheQueue
+                      dirPath:[self cachePath]
+                      success:^(MTNetCacheElement *obj) {
+                          block(obj.image);
+                      }
+                        faild:^(MTNetCacheElement *obj) {
+                            block(nil);
+                        }];
+    } else {
+        obj = [_locationCache fileForUrl:url];
+        if (obj) {
+            [obj loadImageOnQueue:_cacheQueue
+                          dirPath:[self cachePath]
+                          success:^(MTNetCacheElement *obj) {
+                              block(obj.image);
+                              [_memoryCache addFile:obj];
+                          }
+                            faild:^(MTNetCacheElement *obj) {
+                                [_locationCache deleteFileForUrl:obj.urlString];
+                                block(nil);
+                            }];
+        }else {
+            block(nil);
+        }
+    }
+}
+
+- (void)getDataWithUrl:(NSString *)url block:(MTNetCacheBlock)block
+{
     MTNetCacheElement *obj = [_memoryCache fileForUrl:url];
     if (obj.data)
         block(obj.data);
-    else {
+    else if (obj) {
+        [obj loadDataOnQueue:_cacheQueue
+                     dirPath:[self cachePath]
+                     success:^(MTNetCacheElement *obj) {
+                         block(obj.data);
+                     }
+                       faild:^(MTNetCacheElement *obj) {
+                           block(nil);
+                       }];
+    } else {
         obj = [_locationCache fileForUrl:url];
         if (obj) {
             [obj loadDataOnQueue:_cacheQueue
-                         dirPath:[self cachePath]
-                         success:^(MTNetCacheElement *obj) {
-                             block(obj.data);
-                             [_memoryCache addFile:obj];
-                         }
-                           faild:^(MTNetCacheElement *obj) {
-                               [_locationCache deleteFileForUrl:obj.urlString];
-                               block(nil);
-                           }];
+                          dirPath:[self cachePath]
+                          success:^(MTNetCacheElement *obj) {
+                              block(obj.data);
+                              [_memoryCache addFile:obj];
+                          }
+                            faild:^(MTNetCacheElement *obj) {
+                                [_locationCache deleteFileForUrl:obj.urlString];
+                                block(nil);
+                            }];
         }else {
             block(nil);
         }

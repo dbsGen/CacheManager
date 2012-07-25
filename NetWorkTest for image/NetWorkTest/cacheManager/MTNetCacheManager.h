@@ -15,7 +15,7 @@
 
 @class MTMenoryCache, MTLocationCache;
 
-typedef void (^MTNetCacheBlock)(UIImage* image);
+typedef void (^MTNetCacheBlock)(id result);
 
 @interface MTNetCacheManager : NSObject
 {
@@ -46,11 +46,16 @@ typedef void (^MTNetCacheBlock)(UIImage* image);
 // you can set the other path.
 - (id)initWithPath:(NSString*)cachePath;
 
-//use this method to cache the data
+//use this method to cache the image
 - (void)setImage:(UIImage*)image withUrl:(NSString*)url;
+
+//use this method to cache the data
+- (void)setData:(NSData*)data withUrl:(NSString*)url;
 
 //this method to load image from disk if its exists.
 - (void)getImageWithUrl:(NSString*)url block:(MTNetCacheBlock)block;
+
+- (void)getDataWithUrl:(NSString*)url block:(MTNetCacheBlock)block;
 
 
 //手动保存磁盘缓存信息,有操作后30秒内会自动缓存一次

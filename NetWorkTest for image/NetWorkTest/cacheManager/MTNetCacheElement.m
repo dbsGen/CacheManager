@@ -17,10 +17,11 @@
 @implementation MTNetCacheElement
 
 @synthesize date = _date, urlString = _urlString, data = _data, path = _path;
-@synthesize size = _size, doing = _doing;
+@synthesize size = _size, doing = _doing, image = _image;
 
 - (void)dealloc
 {
+    [_image         release];
     [_date          release];
     [_urlString     release];
     [_data          release];
@@ -52,7 +53,7 @@
                  success:(MTCacheElementSuccessBlock)successBlock
                    faild:(MTCacheElementFaildBlock)faildBlock
 {
-    if (!_data || !path) {
+    if ((!_data && !_image) || !path) {
         NSLog(@"no data to save!");
         faildBlock(self);
         return;
@@ -64,8 +65,11 @@
         }
         _doing = YES;
         
-        NSData *data = UIImagePNGRepresentation(_data);
-        NSString *name = MD5String(data);
+        NSData *data;
+        if (_data) {
+            data = _data;
+        }else data = UIImagePNGRepresentation(_image);
+        NSString *name = MD5String([self.urlString dataUsingEncoding:NSUTF8StringEncoding]);
         self.path = name;
         
         BOOL success = [data writeToFile:[path stringByAppendingPathComponent:name]
@@ -97,11 +101,51 @@
         }
         _doing = YES;
         
-        NSData *data = [NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:_path]];
+        NSData *data = nil;
+        
+        if (self.image) {
+            data = UIImagePNGRepresentation(self.image);
+        }else data = [NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:_path]];
         
         BOOL success = data != nil;
         if (data) {
-            self.data = [UIImage imageWithData:data];
+            self.data = data;
+        }
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            _doing = NO;
+            if (success) {
+                successBlock(self);
+            }else faildBlock(self);
+        });
+    };
+    
+    dispatch_async(queue, db);
+}
+
+- (void)loadImageOnQueue:(dispatch_queue_t)queue dirPath:(NSString*)path
+                 success:(MTCacheElementSuccessBlock)successBlock
+                   faild:(MTCacheElementFaildBlock)faildBlock
+{
+    if (!path || !_path) {
+        NSLog(@"I must have a directory to load the data");
+        faildBlock(self);
+        return;
+    }
+    
+    dispatch_block_t db = ^(void) {
+        while (_doing) {
+            sleep(0.5);
+        }
+        _doing = YES;
+        
+        NSData *data = nil;
+        if (self.data) {
+            data = self.data;
+        }else data = [NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:_path]];
+        
+        BOOL success = data != nil;
+        if (data) {
+            self.image = [UIImage imageWithData:data];
         }
         dispatch_sync(dispatch_get_main_queue(), ^{
             _doing = NO;
