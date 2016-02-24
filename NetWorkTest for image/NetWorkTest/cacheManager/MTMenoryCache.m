@@ -52,12 +52,12 @@ NS_INLINE UInt64 sizeOfImage(UIImage *image)
     NSString *urlString = file.urlString;
     MTNetCacheElement *obj = [_datas objectForKey:urlString];
     if (obj) {
-        _size -= sizeOfImage(obj.data);
+        _size -= obj.data.length;
     }else {
         //保存索引
         [_index addObject:file.urlString];
     }
-    _size += sizeOfImage(file.data);
+    _size += file.data.length;
     [_datas setObject:file forKey:urlString];
     
     //检查是否超出缓存大小
@@ -75,7 +75,7 @@ NS_INLINE UInt64 sizeOfImage(UIImage *image)
 - (void)deleteFileForUrl:(NSString*)url
 {
     MTNetCacheElement *obj = [_datas objectForKey:url];
-    _size -= sizeOfImage(obj.data);
+    _size -= obj.data.length;
     obj.data = nil;
     [_index removeObject:obj.urlString];
     [_datas removeObjectForKey:url];

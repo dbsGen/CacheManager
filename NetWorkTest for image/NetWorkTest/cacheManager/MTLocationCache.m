@@ -91,6 +91,7 @@ static NSMutableArray   *__cache;
 {
     [_datas setObject:file
                forKey:file.urlString];
+    _saveKey = YES;
 }
 
 - (void)setDirPath:(NSString *)path

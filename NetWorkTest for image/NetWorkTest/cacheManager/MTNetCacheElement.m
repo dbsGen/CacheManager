@@ -34,7 +34,7 @@
     [aCoder encodeObject:_date      forKey:kDate];
     [aCoder encodeObject:_urlString forKey:kUrlString];
     [aCoder encodeObject:_path      forKey:kPath];
-    [aCoder encodeInt32:_size       forKey:kSize];
+    [aCoder encodeInt64:_size       forKey:kSize];
 }
 
 - (id)initWithCoder:(NSCoder *)aDecoder
@@ -44,7 +44,7 @@
         self.date = [aDecoder decodeObjectForKey:kDate];
         self.urlString = [aDecoder decodeObjectForKey:kUrlString];
         self.path = [aDecoder decodeObjectForKey:kPath];
-        self.size = [aDecoder decodeInt32ForKey:kSize];
+        self.size = [aDecoder decodeInt64ForKey:kSize];
     }
     return self;
 }

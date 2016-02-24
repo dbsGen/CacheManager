@@ -281,7 +281,7 @@ static int __count = 0;
 
 - (NSString*)description
 {
-    return [NSString stringWithFormat:@"%@ memory used : %dm%dkB , disk used : %dm%dkB", 
+    return [NSString stringWithFormat:@"%@ memory used : %llum%llukB , disk used : %llum%llukB", 
             [super description], self.memUsed / (1024*1024), (self.memUsed / 1024) % 1024,
             self.locationUsed / (1024*1024), (self.locationUsed / 1024) % 1024];
 }
